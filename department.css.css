@@ -1,0 +1,324 @@
+/* ===== Mobile-First Base Styles ===== */
+:root {
+    --primary: rgb(165, 15, 67);
+    --primary-light: rgba(165, 15, 67, 0.1);
+    --secondary: #8e264f;
+    --text: #333;
+    --light-gray: #f9f9f9;
+    --white: #fff;
+    --border: #ddd;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 10px;
+    background-color: var(--light-gray);
+    font-size: 1rem;
+    color: var(--text);
+    line-height: 1.6;
+    min-width: 320px;
+}
+
+/* ===== Header ===== */
+header {
+    text-align: center;
+    background-color: var(--primary);
+    color: var(--white);
+    padding: 15px 0;
+    border-bottom: 3px solid var(--primary);
+    position: relative;
+}
+
+header h1 {
+    font-size: 1.8rem;
+    margin: 0;
+    font-family: 'Georgia', serif;
+    line-height: 1.3;
+}
+
+header h2 {
+    font-size: 1.3rem;
+    margin-top: 8px;
+    text-decoration: underline;
+}
+
+hr {
+    background-color: #979292;
+    height: 2px;
+    border: none;
+    margin: 15px 0;
+    opacity: 0.8;
+}
+
+/* ===== Department Selector ===== */
+#departmentSelector {
+    margin: 15px 0;
+    padding: 10px;
+    text-align: center;
+    color: var(--primary);
+}
+
+#departmentSelector select {
+    padding: 8px 12px;
+    font-size: 1rem;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    width: 100%;
+    max-width: 300px;
+}
+
+select:focus {
+    outline: none;
+    border: 2px solid var(--primary);
+}
+
+/* ===== Client Table ===== */
+.table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 15px 0;
+    background: var(--white);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#clientTable {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 600px;
+}
+
+#clientTable th, 
+#clientTable td {
+    padding: 10px 12px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+}
+
+#clientTable th {
+    background-color: var(--primary);
+    color: var(--white);
+    position: sticky;
+    top: 0;
+}
+
+#clientTable tr:hover {
+    background-color: var(--primary-light);
+}
+
+.highlight-row {
+    background-color: var(--white) !important;
+    transition: background-color 0.5s;
+}
+
+/* ===== Status Indicators ===== */
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.status-new {
+    background-color: #ff0000;
+    animation: pulse 2s infinite;
+}
+
+.status-seen {
+    background-color: #ffa500;
+}
+
+.status-completed {
+    background-color: #008000;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* ===== Action Buttons ===== */
+.action-buttons {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.action-buttons button {
+    padding: 5px 8px;
+    cursor: pointer;
+    border: none;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    min-width: 60px;
+}
+
+.seen-btn {
+    background-color: #ffa500;
+    color: white;
+}
+
+/* ===== Reports Section ===== */
+.reports-section {
+    margin-top: 20px;
+    padding: 15px;
+    background: var(--white);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.reports-section h2 {
+    color: var(--primary);
+    text-align: center;
+    margin-bottom: 15px;
+    font-size: 1.3rem;
+}
+
+.report-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.report-buttons button {
+    width: 100%;
+    margin: 0;
+    background: var(--primary);
+    color: var(--white);
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: serif;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+.report-buttons button:hover {
+    background: var(--secondary);
+}
+
+/* ===== Date Selector ===== */
+.date-selector {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.date-selector label {
+    font-weight: bold;
+    color: var(--primary);
+    font-size: 0.9rem;
+}
+
+.date-selector input {
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    margin-top: 5px;
+    width: 100%;
+    max-width: 200px;
+}
+
+.date-selector input:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 3px rgba(165, 47, 94, 0.3);
+}
+
+/* ===== Footer ===== */
+footer p {
+    text-align: center;
+    color: var(--primary);
+    font-size: 0.8rem;
+    margin: 20px 0 10px;
+}
+
+/* ===== Images ===== */
+img {
+    display: block;
+    margin: 15px auto;
+    max-width: 100%;
+    height: auto;
+}
+
+.notification-pill {
+    display: inline-block;
+    background-color: var(--primary);
+    color: var(--white);
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 6px;
+    font-size: 0.7rem;
+}
+
+/* ===== Media Queries ===== */
+@media (min-width: 480px) {
+    .action-buttons {
+        flex-wrap: nowrap;
+    }
+    
+    .action-buttons button {
+        padding: 5px 10px;
+    }
+}
+
+@media (min-width: 768px) {
+    body {
+        padding: 20px;
+        font-size: 1.05rem;
+    }
+    
+    header {
+        padding: 20px 0;
+    }
+    
+    header h1 {
+        font-size: 2rem;
+    }
+    
+    header h2 {
+        font-size: 1.5rem;
+    }
+    
+    #clientTable th, 
+    #clientTable td {
+        padding: 12px 15px;
+        font-size: 1rem;
+    }
+    
+    .report-buttons {
+        flex-direction: row;
+        justify-content: center;
+    }
+    
+    .report-buttons button {
+        width: auto;
+        flex: 1;
+        max-width: 250px;
+    }
+}
+
+@media (min-width: 1024px) {
+    header h1 {
+        font-size: 2.2rem;
+    }
+    
+    .reports-section h2 {
+        font-size: 1.5rem;
+    }
+    
+    .notification-pill {
+        padding: 3px 8px;
+        font-size: 0.8rem;
+    }
+}

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="author" content="Archer Maud">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <link rel="stylesheet" href="department.css">
+    <script src="https://kit.fontawesome.com/11b9525b82.js" crossorigin="anonymous"></script>
+    
+    <title>Department Client Dashboard - SUNU Assurances</title>
+</head>
+
+<body>
+    <header>
+        <hr> 
+        <div class="header-container">
+            <h1>SUNU Assurances Ghana LTD</h1>
+            <img src="/img3/Logo_SUNU_Assurances_HD-01_(002)_copy[1].png" alt="SUNU Assurances Logo" width="300" height="200">
+        </div>
+        <hr>
+        <h2>Department Client Dashboard <span id="departmentTitle"></span></h2>
+    </header>
+
+    <main>
+        <!-- Department Selector -->
+        <section id="departmentSelector">
+            <label for="department">Select Your Department:</label>
+            <select id="department" onchange="setDepartment()">
+                <option value="">-- Select Department --</option>
+                <option value="CLAIMS">CLAIMS</option>
+                <option value="UNDERWRITING">UNDERWRITING</option>
+                <option value="RETAIL">RETAIL</option>
+                <option value="HR_ADMIN">HR/ADMIN</option>
+                <option value="accounts">ACCOUNTS</option>
+                <option value="MD">MD</option>
+                <option value="DMD">DMD</option>
+                <option value="CFAO">CFAO</option>
+                <option value="IT">IT</option>
+                <option value="BDU">BDU</option>
+                <option value="LEGAL">LEGAL</option>
+                <option value="RISK">RISK</option>
+                <option value="CUSTOMER_SERVICE">CUSTOMER SERVICE</option>
+            </select>
+        </section>
+
+        <!-- Dashboard Container -->
+        <section id="dashboardContainer" style="display: none;">
+            <h3>Clients Waiting <span id="clientCount" class="notification-pill">0</span></h3>
+            
+            <table id="clientTable">
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Client Name</th>
+                        <th>Purpose</th>
+                        <th>Arrival Time</th>
+                        <th>Comments</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="clientTableBody">
+                    <!-- Client rows will be populated here -->
+                </tbody>
+            </table>
+            
+            <div id="noClientsMessage" class="no-clients-message">No clients waiting for this department</div>
+        </section>
+
+        <!-- Reports Section -->
+        <section class="reports-section">
+            <h3>Reports & Exports</h3>
+            <div class="report-buttons">
+                <button class="complete-btn" onclick="displayEndOfDayReport()">End of Day Report</button>
+                <button class="complete-btn" onclick="exportClientsAsCSV()">Export to CSV</button>
+                <button class="complete-btn" onclick="generateDailyReport()">Department Summary</button>
+            </div>
+
+            <div class="date-selector">
+                <label for="reportDate">Report for specific date:</label>
+                <input type="date" id="reportDate">
+                <button onclick="runDateSpecificReport()">Generate Report</button>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 SUNU Assurances Ghana LTD. All rights reserved.</p>
+    </footer>
+
+    <script src="department.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
