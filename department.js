@@ -8,6 +8,7 @@ const STATUS = {
 // Global variables
 let selectedDepartment = '';
 let clientQueue = [];
+let completedClients = []; // Added completedClients array
 let lastCheckTime = 0;
 
 // Load when the document is ready
@@ -51,11 +52,20 @@ function setDepartment() {
     }
 }
 
-// Load clients from localStorage
+// Load clients from localStorage - update to also load completedClients
 function loadClientsFromStorage() {
     const storedClients = localStorage.getItem('clientQueue');
+    const storedCompletedClients = localStorage.getItem('completedClients');
+    
     if (storedClients) {
         clientQueue = JSON.parse(storedClients);
+    }
+    
+    if (storedCompletedClients) {
+        // Also load completed clients to use in reports
+        completedClients = JSON.parse(storedCompletedClients);
+    } else {
+        completedClients = []; // Initialize if not found
     }
 }
 
@@ -247,9 +257,21 @@ function generateDailyReport() {
     }
     
     const today = new Date().toLocaleDateString();
+    
+    // Get active clients for this department
     const departmentClients = clientQueue.filter(client => client.department === selectedDepartment);
     
-    if (departmentClients.length === 0) {
+    // Get completed clients for this department (from today)
+    const departmentCompletedClients = completedClients.filter(client => 
+        client.department === selectedDepartment && 
+        // Check if completed today (if completion time exists)
+        (client.completionTime ? new Date(client.completionTime).toLocaleDateString() === today : false)
+    );
+    
+    // Combine both active and completed clients
+    const allDepartmentClients = [...departmentClients, ...departmentCompletedClients];
+    
+    if (allDepartmentClients.length === 0) {
         alert(`No clients for ${selectedDepartment} today`);
         return;
     }
@@ -257,18 +279,21 @@ function generateDailyReport() {
     // Count clients by status
     const waiting = departmentClients.filter(c => c.status === STATUS.WAITING).length;
     const inProgress = departmentClients.filter(c => c.status === STATUS.IN_PROGRESS).length;
-    const completed = departmentClients.filter(c => c.status === STATUS.COMPLETED).length;
+    
+    // Count completed from both arrays
+    const completedActive = departmentClients.filter(c => c.status === STATUS.COMPLETED).length;
+    const completedTotal = completedActive + departmentCompletedClients.length;
     
     let reportContent = `Daily Report for ${selectedDepartment} (${today})\n\n`;
-    reportContent += `Total Clients: ${departmentClients.length}\n`;
+    reportContent += `Total Clients: ${allDepartmentClients.length}\n`;
     reportContent += `Waiting: ${waiting}\n`;
     reportContent += `In Progress: ${inProgress}\n`;
-    reportContent += `Completed: ${completed}\n`;
+    reportContent += `Completed: ${completedTotal}\n`;
     
     alert(reportContent);
 }
 
-// Display end of day report
+// Display end of day report - updated to use completedClients
 function displayEndOfDayReport() {
     if (!selectedDepartment) {
         alert('Please select a department first');
@@ -276,9 +301,21 @@ function displayEndOfDayReport() {
     }
     
     const today = new Date().toLocaleDateString();
+    
+    // Get active clients for this department
     const departmentClients = clientQueue.filter(client => client.department === selectedDepartment);
     
-    if (departmentClients.length === 0) {
+    // Get completed clients for this department (from today)
+    const departmentCompletedClients = completedClients.filter(client => 
+        client.department === selectedDepartment && 
+        // Check if completed today
+        (client.completionTime ? new Date(client.completionTime).toLocaleDateString() === today : false)
+    );
+    
+    // Combine both active and completed clients
+    const allDepartmentClients = [...departmentClients, ...departmentCompletedClients];
+    
+    if (allDepartmentClients.length === 0) {
         alert(`No clients for ${selectedDepartment} today`);
         return;
     }
@@ -286,25 +323,28 @@ function displayEndOfDayReport() {
     // Count clients by status
     const waiting = departmentClients.filter(c => c.status === STATUS.WAITING).length;
     const inProgress = departmentClients.filter(c => c.status === STATUS.IN_PROGRESS).length;
-    const completed = departmentClients.filter(c => c.status === STATUS.COMPLETED).length;
+    
+    // Count completed from both arrays
+    const completedActive = departmentClients.filter(c => c.status === STATUS.COMPLETED).length;
+    const completedTotal = completedActive + departmentCompletedClients.length;
     
     let reportContent = `END OF DAY REPORT - ${selectedDepartment} (${today})\n`;
     reportContent += `===================================\n\n`;
     reportContent += `SUMMARY:\n`;
-    reportContent += `Total Clients: ${departmentClients.length}\n`;
+    reportContent += `Total Clients: ${allDepartmentClients.length}\n`;
     reportContent += `Waiting: ${waiting}\n`;
     reportContent += `In Progress: ${inProgress}\n`;
-    reportContent += `Completed: ${completed}\n\n`;
+    reportContent += `Completed: ${completedTotal}\n\n`;
     
     reportContent += `CLIENT LIST:\n`;
-    departmentClients.forEach((client, index) => {
+    allDepartmentClients.forEach((client, index) => {
         reportContent += `${index + 1}. ${client.name} - ${client.purpose} (${getStatusLabel(client.status)})\n`;
     });
     
     alert(reportContent);
 }
 
-// Run date-specific report
+// Run date-specific report - updated to include completedClients
 function runDateSpecificReport() {
     const dateInput = document.getElementById('reportDate');
     if (!dateInput || !dateInput.value) {
@@ -317,5 +357,45 @@ function runDateSpecificReport() {
         return;
     }
     
-    alert(`Date-specific reports not implemented yet. Selected date: ${dateInput.value}`);
+    const selectedDate = new Date(dateInput.value).toLocaleDateString();
+    
+    // Get active clients for this department
+    const departmentClients = clientQueue.filter(client => client.department === selectedDepartment);
+    
+    // Get completed clients for this department and selected date
+    const departmentCompletedClients = completedClients.filter(client => 
+        client.department === selectedDepartment && 
+        (client.completionTime ? new Date(client.completionTime).toLocaleDateString() === selectedDate : false)
+    );
+    
+    // Combine both active and completed clients
+    const allDepartmentClients = [...departmentClients, ...departmentCompletedClients];
+    
+    if (allDepartmentClients.length === 0) {
+        alert(`No clients for ${selectedDepartment} on ${selectedDate}`);
+        return;
+    }
+    
+    // Count clients by status
+    const waiting = departmentClients.filter(c => c.status === STATUS.WAITING).length;
+    const inProgress = departmentClients.filter(c => c.status === STATUS.IN_PROGRESS).length;
+    
+    // Count completed from both arrays
+    const completedActive = departmentClients.filter(c => c.status === STATUS.COMPLETED).length;
+    const completedTotal = completedActive + departmentCompletedClients.length;
+    
+    let reportContent = `REPORT FOR ${selectedDate} - ${selectedDepartment}\n`;
+    reportContent += `===================================\n\n`;
+    reportContent += `SUMMARY:\n`;
+    reportContent += `Total Clients: ${allDepartmentClients.length}\n`;
+    reportContent += `Waiting: ${waiting}\n`;
+    reportContent += `In Progress: ${inProgress}\n`;
+    reportContent += `Completed: ${completedTotal}\n\n`;
+    
+    reportContent += `CLIENT LIST:\n`;
+    allDepartmentClients.forEach((client, index) => {
+        reportContent += `${index + 1}. ${client.name} - ${client.purpose} (${getStatusLabel(client.status)})\n`;
+    });
+    
+    alert(reportContent);
 }
