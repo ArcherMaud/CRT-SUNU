@@ -218,21 +218,33 @@ const STATUS = {
       }
   }
   
-  // Remove client from queue
-  function removeClient(clientId) {
-      clientQueue = clientQueue.filter(client => client.id !== clientId);
-      updateClientTable();
-      saveClientsToStorage();
-  }
-  
-  // Clear all clients
-  function clearEntries() {
-      if (confirm('Are you sure you want to clear all client entries?')) {
-          clientQueue = [];
-          updateClientTable();
-          saveClientsToStorage();
-      }
-  }
+// Remove client from queue
+function removeClient(clientId) {
+    const clientIndex = clientQueue.findIndex(client => client.id === clientId);
+    
+    // If the client exists, check if it's completed before removal
+    if (clientIndex !== -1) {
+        const client = clientQueue[clientIndex];
+        
+        // If the client is completed, add to completedClients array before removing
+        if (client.status === STATUS.COMPLETED) {
+            // Check if this client isn't already in completedClients array
+            const alreadyInCompletedClients = completedClients.some(c => c.id === client.id);
+            if (!alreadyInCompletedClients) {
+                completedClients.push(client);
+            }
+        }
+        
+        // Now remove from the main queue
+        clientQueue.splice(clientIndex, 1);
+    } else {
+        // If not found in main queue, maybe it's already in completedClients
+        // We don't need to do anything in this case
+    }
+    
+    updateClientTable();
+    saveClientsToStorage();
+}
   
   // Get current time in HH:MM format
   function getCurrentTime() {
