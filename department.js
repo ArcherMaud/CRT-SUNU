@@ -9,6 +9,7 @@ const STATUS = {
 let selectedDepartment = '';
 let clientQueue = [];
 let lastCheckTime = 0;
+let dailyClientHistory = []; // New array to store clients for daily reporting
 
 // Load when the document is ready
 document.addEventListener('DOMContentLoaded', function () {
@@ -22,6 +23,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Load client queue from localStorage
     loadClientsFromStorage();
+    
+    // Load daily history from localStorage
+    loadDailyHistoryFromStorage();
 
     // Start checking for new clients regularly
     setInterval(checkForNewClients, 5000); // Check every 5 seconds
@@ -56,6 +60,25 @@ function loadClientsFromStorage() {
     const storedClients = localStorage.getItem('clientQueue');
     if (storedClients) {
         clientQueue = JSON.parse(storedClients);
+    }
+}
+
+// Load daily history from localStorage
+function loadDailyHistoryFromStorage() {
+    const storedHistory = localStorage.getItem('dailyClientHistory');
+    if (storedHistory) {
+        dailyClientHistory = JSON.parse(storedHistory);
+    }
+    
+    // Check if we need to reset the history (new day)
+    const today = new Date().toLocaleDateString();
+    const lastRecordedDate = localStorage.getItem('lastRecordedDate');
+    
+    if (lastRecordedDate !== today) {
+        // It's a new day, reset the history
+        dailyClientHistory = [];
+        localStorage.setItem('lastRecordedDate', today);
+        localStorage.setItem('dailyClientHistory', JSON.stringify(dailyClientHistory));
     }
 }
 
@@ -197,6 +220,13 @@ function updateClientStatus(clientId, newStatus) {
         clientQueue[clientIndex].startTime = new Date();
     } else if (newStatus === STATUS.COMPLETED) {
         clientQueue[clientIndex].completionTime = new Date();
+        
+        // Add to daily history when completed
+        const completedClient = {...clientQueue[clientIndex]};
+        if (!dailyClientHistory.some(c => c.id === completedClient.id)) {
+            dailyClientHistory.push(completedClient);
+            localStorage.setItem('dailyClientHistory', JSON.stringify(dailyClientHistory));
+        }
     }
 
     // Save updated client queue to localStorage
@@ -247,7 +277,26 @@ function generateDailyReport() {
     }
     
     const today = new Date().toLocaleDateString();
-    const departmentClients = clientQueue.filter(client => client.department === selectedDepartment);
+    
+    // Combine current clients and history for this department
+    const departmentCurrentClients = clientQueue.filter(client => client.department === selectedDepartment);
+    const departmentHistoryClients = dailyClientHistory.filter(client => client.department === selectedDepartment);
+    
+    // Create a unique list of clients (using Set and client ID)
+    const uniqueClientMap = new Map();
+    
+    // Add current clients first
+    departmentCurrentClients.forEach(client => {
+        uniqueClientMap.set(client.id, client);
+    });
+    
+    // Add history clients (they will overwrite current clients with same ID)
+    departmentHistoryClients.forEach(client => {
+        uniqueClientMap.set(client.id, client);
+    });
+    
+    // Convert map to array
+    const departmentClients = Array.from(uniqueClientMap.values());
     
     if (departmentClients.length === 0) {
         alert(`No clients for ${selectedDepartment} today`);
@@ -276,7 +325,26 @@ function displayEndOfDayReport() {
     }
     
     const today = new Date().toLocaleDateString();
-    const departmentClients = clientQueue.filter(client => client.department === selectedDepartment);
+    
+    // Combine current clients and history for this department
+    const departmentCurrentClients = clientQueue.filter(client => client.department === selectedDepartment);
+    const departmentHistoryClients = dailyClientHistory.filter(client => client.department === selectedDepartment);
+    
+    // Create a unique list of clients (using Map and client ID)
+    const uniqueClientMap = new Map();
+    
+    // Add current clients first
+    departmentCurrentClients.forEach(client => {
+        uniqueClientMap.set(client.id, client);
+    });
+    
+    // Add history clients (they will overwrite current clients with same ID)
+    departmentHistoryClients.forEach(client => {
+        uniqueClientMap.set(client.id, client);
+    });
+    
+    // Convert map to array
+    const departmentClients = Array.from(uniqueClientMap.values());
     
     if (departmentClients.length === 0) {
         alert(`No clients for ${selectedDepartment} today`);
