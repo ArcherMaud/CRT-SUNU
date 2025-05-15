@@ -9,7 +9,7 @@ const STATUS = {
 let selectedDepartment = '';
 let clientQueue = [];
 let lastCheckTime = 0;
-let dailyClientHistory = []; // New array to store clients for daily reporting
+let dailyClientHistory = []; // Store clients for daily reporting
 
 // Load when the document is ready
 document.addEventListener('DOMContentLoaded', function () {
@@ -212,14 +212,30 @@ function updateClientStatus(clientId, newStatus) {
     const clientIndex = clientQueue.findIndex(client => client.id === clientId);
     if (clientIndex === -1) return;
 
+    const now = new Date();
+    
     // Update client status
     clientQueue[clientIndex].status = newStatus;
     
     // Add timing information
     if (newStatus === STATUS.IN_PROGRESS) {
-        clientQueue[clientIndex].startTime = new Date();
+        // Record start time of processing
+        clientQueue[clientIndex].startTime = now;
+        
+        // Calculate waiting time (from reception time to start time)
+        const receptionTime = new Date(clientQueue[clientIndex].timestamp || clientQueue[clientIndex].time);
+        const waitingTimeMs = now - receptionTime;
+        clientQueue[clientIndex].waitingTimeMs = waitingTimeMs;
     } else if (newStatus === STATUS.COMPLETED) {
-        clientQueue[clientIndex].completionTime = new Date();
+        // Record completion time
+        clientQueue[clientIndex].completionTime = now;
+        
+        // Calculate processing time (from start to completion)
+        if (clientQueue[clientIndex].startTime) {
+            const startTime = new Date(clientQueue[clientIndex].startTime);
+            const processingTimeMs = now - startTime;
+            clientQueue[clientIndex].processingTimeMs = processingTimeMs;
+        }
         
         // Add to daily history when completed
         const completedClient = {...clientQueue[clientIndex]};
@@ -356,26 +372,52 @@ function displayEndOfDayReport() {
     const inProgress = departmentClients.filter(c => c.status === STATUS.IN_PROGRESS).length;
     const completed = departmentClients.filter(c => c.status === STATUS.COMPLETED).length;
     
-    // Calculate average time spent per completed client
-    let totalTimeSpentMs = 0;
-    let clientsWithTimeData = 0;
+    // Calculate time metrics
+    let totalProcessingTimeMs = 0;
+    let totalWaitingTimeMs = 0;
+    let clientsWithProcessingTime = 0;
+    let clientsWithWaitingTime = 0;
     
     departmentClients.forEach(client => {
-        if (client.status === STATUS.COMPLETED && client.startTime && client.completionTime) {
+        // Processing time calculation (time with department staff)
+        if (client.processingTimeMs && client.processingTimeMs > 0) {
+            totalProcessingTimeMs += client.processingTimeMs;
+            clientsWithProcessingTime++;
+        } else if (client.status === STATUS.COMPLETED && client.startTime && client.completionTime) {
             const startTime = new Date(client.startTime);
             const completionTime = new Date(client.completionTime);
             const timeSpentMs = completionTime - startTime;
             
             if (timeSpentMs > 0) {
-                totalTimeSpentMs += timeSpentMs;
-                clientsWithTimeData++;
+                totalProcessingTimeMs += timeSpentMs;
+                clientsWithProcessingTime++;
+            }
+        }
+        
+        // Waiting time calculation (time before being seen)
+        if (client.waitingTimeMs && client.waitingTimeMs > 0) {
+            totalWaitingTimeMs += client.waitingTimeMs;
+            clientsWithWaitingTime++;
+        } else if ((client.status === STATUS.IN_PROGRESS || client.status === STATUS.COMPLETED) && 
+                   client.timestamp && client.startTime) {
+            const receptionTime = new Date(client.timestamp);
+            const startTime = new Date(client.startTime);
+            const waitTimeMs = startTime - receptionTime;
+            
+            if (waitTimeMs > 0) {
+                totalWaitingTimeMs += waitTimeMs;
+                clientsWithWaitingTime++;
             }
         }
     });
     
-    // Calculate average time in minutes
-    const averageTimeMinutes = clientsWithTimeData > 0 
-        ? Math.round((totalTimeSpentMs / clientsWithTimeData) / (1000 * 60)) 
+    // Calculate average times in minutes
+    const avgProcessingMinutes = clientsWithProcessingTime > 0 
+        ? Math.round((totalProcessingTimeMs / clientsWithProcessingTime) / (1000 * 60)) 
+        : 0;
+    
+    const avgWaitingMinutes = clientsWithWaitingTime > 0 
+        ? Math.round((totalWaitingTimeMs / clientsWithWaitingTime) / (1000 * 60)) 
         : 0;
     
     let reportContent = `END OF DAY REPORT - ${selectedDepartment} (${today})\n`;
@@ -384,12 +426,25 @@ function displayEndOfDayReport() {
     reportContent += `Total Clients: ${departmentClients.length}\n`;
     reportContent += `Waiting: ${waiting}\n`;
     reportContent += `In Progress: ${inProgress}\n`;
-    reportContent += `Completed: ${completed}\n`;
-    reportContent += `Average Time per Client: ${averageTimeMinutes} minutes\n\n`;
+    reportContent += `Completed: ${completed}\n\n`;
+    
+    reportContent += `TIME METRICS:\n`;
+    reportContent += `Average Waiting Time: ${avgWaitingMinutes} minutes\n`;
+    reportContent += `Average Processing Time: ${avgProcessingMinutes} minutes\n\n`;
     
     reportContent += `CLIENT LIST:\n`;
     departmentClients.forEach((client, index) => {
-        reportContent += `${index + 1}. ${client.name} - ${client.purpose} (${getStatusLabel(client.status)})\n`;
+        let clientInfo = `${index + 1}. ${client.name} - ${client.purpose} (${getStatusLabel(client.status)})`;
+        
+        // Add individual time data if available
+        const waitTimeMin = client.waitingTimeMs ? Math.round(client.waitingTimeMs / (1000 * 60)) : 0;
+        const processTimeMin = client.processingTimeMs ? Math.round(client.processingTimeMs / (1000 * 60)) : 0;
+        
+        if (waitTimeMin > 0 || processTimeMin > 0) {
+            clientInfo += ` - Wait: ${waitTimeMin}m, Process: ${processTimeMin}m`;
+        }
+        
+        reportContent += `${clientInfo}\n`;
     });
     
     alert(reportContent);
