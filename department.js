@@ -9,7 +9,6 @@ const STATUS = {
 let selectedDepartment = '';
 let clientQueue = [];
 let lastCheckTime = 0;
-let dailyClientHistory = []; // Store clients for daily reporting
 
 // Load when the document is ready
 document.addEventListener('DOMContentLoaded', function () {
@@ -23,9 +22,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Load client queue from localStorage
     loadClientsFromStorage();
-    
-    // Load daily history from localStorage
-    loadDailyHistoryFromStorage();
 
     // Start checking for new clients regularly
     setInterval(checkForNewClients, 5000); // Check every 5 seconds
@@ -60,25 +56,6 @@ function loadClientsFromStorage() {
     const storedClients = localStorage.getItem('clientQueue');
     if (storedClients) {
         clientQueue = JSON.parse(storedClients);
-    }
-}
-
-// Load daily history from localStorage
-function loadDailyHistoryFromStorage() {
-    const storedHistory = localStorage.getItem('dailyClientHistory');
-    if (storedHistory) {
-        dailyClientHistory = JSON.parse(storedHistory);
-    }
-    
-    // Check if we need to reset the history (new day)
-    const today = new Date().toLocaleDateString();
-    const lastRecordedDate = localStorage.getItem('lastRecordedDate');
-    
-    if (lastRecordedDate !== today) {
-        // It's a new day, reset the history
-        dailyClientHistory = [];
-        localStorage.setItem('lastRecordedDate', today);
-        localStorage.setItem('dailyClientHistory', JSON.stringify(dailyClientHistory));
     }
 }
 
@@ -171,6 +148,26 @@ function updateClientTable(departmentClients) {
             };
             actionsCell.appendChild(completeBtn);
         }
+
+        // Add comment button for all clients
+        const commentBtn = document.createElement('button');
+        commentBtn.textContent = 'Add Comment';
+        commentBtn.className = 'comment-btn';
+        commentBtn.onclick = function() {
+            openCommentModal(client);
+        };
+        actionsCell.appendChild(commentBtn);
+
+        // Show existing department comments if any
+        if (client.departmentComments && client.departmentComments.length > 0) {
+            const viewCommentsBtn = document.createElement('button');
+            viewCommentsBtn.textContent = 'View Comments';
+            viewCommentsBtn.className = 'view-comments-btn';
+            viewCommentsBtn.onclick = function() {
+                viewDepartmentComments(client);
+            };
+            actionsCell.appendChild(viewCommentsBtn);
+        }
         
         // Append all cells to the row
         row.appendChild(statusCell);
@@ -212,37 +209,14 @@ function updateClientStatus(clientId, newStatus) {
     const clientIndex = clientQueue.findIndex(client => client.id === clientId);
     if (clientIndex === -1) return;
 
-    const now = new Date();
-    
     // Update client status
     clientQueue[clientIndex].status = newStatus;
     
     // Add timing information
     if (newStatus === STATUS.IN_PROGRESS) {
-        // Record start time of processing
-        clientQueue[clientIndex].startTime = now;
-        
-        // Calculate waiting time (from reception time to start time)
-        const receptionTime = new Date(clientQueue[clientIndex].timestamp || clientQueue[clientIndex].time);
-        const waitingTimeMs = now - receptionTime;
-        clientQueue[clientIndex].waitingTimeMs = waitingTimeMs;
+        clientQueue[clientIndex].startTime = new Date();
     } else if (newStatus === STATUS.COMPLETED) {
-        // Record completion time
-        clientQueue[clientIndex].completionTime = now;
-        
-        // Calculate processing time (from start to completion)
-        if (clientQueue[clientIndex].startTime) {
-            const startTime = new Date(clientQueue[clientIndex].startTime);
-            const processingTimeMs = now - startTime;
-            clientQueue[clientIndex].processingTimeMs = processingTimeMs;
-        }
-        
-        // Add to daily history when completed
-        const completedClient = {...clientQueue[clientIndex]};
-        if (!dailyClientHistory.some(c => c.id === completedClient.id)) {
-            dailyClientHistory.push(completedClient);
-            localStorage.setItem('dailyClientHistory', JSON.stringify(dailyClientHistory));
-        }
+        clientQueue[clientIndex].completionTime = new Date();
     }
 
     // Save updated client queue to localStorage
@@ -250,6 +224,143 @@ function updateClientStatus(clientId, newStatus) {
 
     // Refresh the table
     checkForNewClients();
+}
+
+// Open comment modal for a client
+function openCommentModal(client) {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.className = 'comment-modal-overlay';
+    modal.innerHTML = `
+        <div class="comment-modal">
+            <div class="comment-modal-header">
+                <h3>Add Comment for ${client.name}</h3>
+                <button class="close-modal" onclick="closeCommentModal()">&times;</button>
+            </div>
+            <div class="comment-modal-body">
+                <p><strong>Purpose:</strong> ${client.purpose}</p>
+                <p><strong>Time:</strong> ${client.time}</p>
+                <p><strong>Status:</strong> ${getStatusLabel(client.status)}</p>
+                
+                <div class="comment-form">
+                    <label for="departmentComment">Your Comment:</label>
+                    <textarea id="departmentComment" rows="4" placeholder="Enter your comment about this client..."></textarea>
+                    
+                    <div class="comment-actions">
+                        <button onclick="submitDepartmentComment('${client.id}')" class="submit-comment-btn">Submit Comment</button>
+                        <button onclick="closeCommentModal()" class="cancel-btn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Focus on textarea
+    setTimeout(() => {
+        document.getElementById('departmentComment').focus();
+    }, 100);
+}
+
+// Close comment modal
+function closeCommentModal() {
+    const modal = document.querySelector('.comment-modal-overlay');
+    if (modal) {
+        document.body.removeChild(modal);
+    }
+}
+
+// Submit department comment
+function submitDepartmentComment(clientId) {
+    const commentText = document.getElementById('departmentComment').value.trim();
+    
+    if (!commentText) {
+        alert('Please enter a comment');
+        return;
+    }
+    
+    // Find the client in the queue
+    const clientIndex = clientQueue.findIndex(client => client.id === clientId);
+    if (clientIndex === -1) {
+        alert('Client not found');
+        return;
+    }
+    
+    // Initialize departmentComments array if it doesn't exist
+    if (!clientQueue[clientIndex].departmentComments) {
+        clientQueue[clientIndex].departmentComments = [];
+    }
+    
+    // Create comment object
+    const comment = {
+        id: Date.now().toString(),
+        department: selectedDepartment,
+        departmentText: document.getElementById('department').options[document.getElementById('department').selectedIndex].text,
+        comment: commentText,
+        timestamp: new Date().toISOString(),
+        author: selectedDepartment // You could enhance this to include staff name
+    };
+    
+    // Add comment to client
+    clientQueue[clientIndex].departmentComments.push(comment);
+    
+    // Save to localStorage
+    localStorage.setItem('clientQueue', JSON.stringify(clientQueue));
+    
+    // Close modal
+    closeCommentModal();
+    
+    // Refresh the table
+    checkForNewClients();
+    
+    // Show success message
+    alert('Comment submitted successfully!');
+}
+
+// View department comments for a client
+function viewDepartmentComments(client) {
+    if (!client.departmentComments || client.departmentComments.length === 0) {
+        alert('No comments available for this client');
+        return;
+    }
+    
+    // Create modal to display comments
+    const modal = document.createElement('div');
+    modal.className = 'comment-modal-overlay';
+    
+    let commentsHtml = '';
+    client.departmentComments.forEach(comment => {
+        const commentDate = new Date(comment.timestamp).toLocaleString();
+        commentsHtml += `
+            <div class="comment-item">
+                <div class="comment-header">
+                    <strong>${comment.departmentText || comment.department}</strong>
+                    <span class="comment-date">${commentDate}</span>
+                </div>
+                <div class="comment-text">${comment.comment}</div>
+            </div>
+        `;
+    });
+    
+    modal.innerHTML = `
+        <div class="comment-modal">
+            <div class="comment-modal-header">
+                <h3>Comments for ${client.name}</h3>
+                <button class="close-modal" onclick="closeCommentModal()">&times;</button>
+            </div>
+            <div class="comment-modal-body">
+                <p><strong>Purpose:</strong> ${client.purpose}</p>
+                <p><strong>Time:</strong> ${client.time}</p>
+                <hr>
+                <div class="comments-list">
+                    ${commentsHtml}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
 }
 
 function exportClientsAsCSV() {
@@ -265,15 +376,20 @@ function exportClientsAsCSV() {
         return;
     }
     
-    let csvContent = "ID,Name,Purpose,Time,Department,Status,Comments\n";
+    let csvContent = "ID,Name,Purpose,Time,Department,Status,Comments,Department Comments\n";
     clients.forEach(client => {
+        // Combine department comments into one field
+        const deptComments = client.departmentComments ? 
+            client.departmentComments.map(c => `${c.departmentText}: ${c.comment}`).join('; ') : '';
+        
         csvContent += `${client.id},`;
         csvContent += `"${client.name}",`;
         csvContent += `"${client.purpose}",`;
         csvContent += `${client.time},`;
         csvContent += `"${client.departmentText || client.department}",`;
         csvContent += `${getStatusLabel(client.status)},`;
-        csvContent += `"${client.comment || ''}"\n`;
+        csvContent += `"${client.comment || ''}",`;
+        csvContent += `"${deptComments}"\n`;
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -293,26 +409,7 @@ function generateDailyReport() {
     }
     
     const today = new Date().toLocaleDateString();
-    
-    // Combine current clients and history for this department
-    const departmentCurrentClients = clientQueue.filter(client => client.department === selectedDepartment);
-    const departmentHistoryClients = dailyClientHistory.filter(client => client.department === selectedDepartment);
-    
-    // Create a unique list of clients (using Set and client ID)
-    const uniqueClientMap = new Map();
-    
-    // Add current clients first
-    departmentCurrentClients.forEach(client => {
-        uniqueClientMap.set(client.id, client);
-    });
-    
-    // Add history clients (they will overwrite current clients with same ID)
-    departmentHistoryClients.forEach(client => {
-        uniqueClientMap.set(client.id, client);
-    });
-    
-    // Convert map to array
-    const departmentClients = Array.from(uniqueClientMap.values());
+    const departmentClients = clientQueue.filter(client => client.department === selectedDepartment);
     
     if (departmentClients.length === 0) {
         alert(`No clients for ${selectedDepartment} today`);
@@ -341,26 +438,7 @@ function displayEndOfDayReport() {
     }
     
     const today = new Date().toLocaleDateString();
-    
-    // Combine current clients and history for this department
-    const departmentCurrentClients = clientQueue.filter(client => client.department === selectedDepartment);
-    const departmentHistoryClients = dailyClientHistory.filter(client => client.department === selectedDepartment);
-    
-    // Create a unique list of clients (using Map and client ID)
-    const uniqueClientMap = new Map();
-    
-    // Add current clients first
-    departmentCurrentClients.forEach(client => {
-        uniqueClientMap.set(client.id, client);
-    });
-    
-    // Add history clients (they will overwrite current clients with same ID)
-    departmentHistoryClients.forEach(client => {
-        uniqueClientMap.set(client.id, client);
-    });
-    
-    // Convert map to array
-    const departmentClients = Array.from(uniqueClientMap.values());
+    const departmentClients = clientQueue.filter(client => client.department === selectedDepartment);
     
     if (departmentClients.length === 0) {
         alert(`No clients for ${selectedDepartment} today`);
@@ -372,54 +450,6 @@ function displayEndOfDayReport() {
     const inProgress = departmentClients.filter(c => c.status === STATUS.IN_PROGRESS).length;
     const completed = departmentClients.filter(c => c.status === STATUS.COMPLETED).length;
     
-    // Calculate time metrics
-    let totalProcessingTimeMs = 0;
-    let totalWaitingTimeMs = 0;
-    let clientsWithProcessingTime = 0;
-    let clientsWithWaitingTime = 0;
-    
-    departmentClients.forEach(client => {
-        // Processing time calculation (time with department staff)
-        if (client.processingTimeMs && client.processingTimeMs > 0) {
-            totalProcessingTimeMs += client.processingTimeMs;
-            clientsWithProcessingTime++;
-        } else if (client.status === STATUS.COMPLETED && client.startTime && client.completionTime) {
-            const startTime = new Date(client.startTime);
-            const completionTime = new Date(client.completionTime);
-            const timeSpentMs = completionTime - startTime;
-            
-            if (timeSpentMs > 0) {
-                totalProcessingTimeMs += timeSpentMs;
-                clientsWithProcessingTime++;
-            }
-        }
-        
-        // Waiting time calculation (time before being seen)
-        if (client.waitingTimeMs && client.waitingTimeMs > 0) {
-            totalWaitingTimeMs += client.waitingTimeMs;
-            clientsWithWaitingTime++;
-        } else if ((client.status === STATUS.IN_PROGRESS || client.status === STATUS.COMPLETED) && 
-                   client.timestamp && client.startTime) {
-            const receptionTime = new Date(client.timestamp);
-            const startTime = new Date(client.startTime);
-            const waitTimeMs = startTime - receptionTime;
-            
-            if (waitTimeMs > 0) {
-                totalWaitingTimeMs += waitTimeMs;
-                clientsWithWaitingTime++;
-            }
-        }
-    });
-    
-    // Calculate average times in minutes
-    const avgProcessingMinutes = clientsWithProcessingTime > 0 
-        ? Math.round((totalProcessingTimeMs / clientsWithProcessingTime) / (1000 * 60)) 
-        : 0;
-    
-    const avgWaitingMinutes = clientsWithWaitingTime > 0 
-        ? Math.round((totalWaitingTimeMs / clientsWithWaitingTime) / (1000 * 60)) 
-        : 0;
-    
     let reportContent = `END OF DAY REPORT - ${selectedDepartment} (${today})\n`;
     reportContent += `===================================\n\n`;
     reportContent += `SUMMARY:\n`;
@@ -428,23 +458,9 @@ function displayEndOfDayReport() {
     reportContent += `In Progress: ${inProgress}\n`;
     reportContent += `Completed: ${completed}\n\n`;
     
-    reportContent += `TIME METRICS:\n`;
-    reportContent += `Average Waiting Time: ${avgWaitingMinutes} minutes\n`;
-    reportContent += `Average Processing Time: ${avgProcessingMinutes} minutes\n\n`;
-    
     reportContent += `CLIENT LIST:\n`;
     departmentClients.forEach((client, index) => {
-        let clientInfo = `${index + 1}. ${client.name} - ${client.purpose} (${getStatusLabel(client.status)})`;
-        
-        // Add individual time data if available
-        const waitTimeMin = client.waitingTimeMs ? Math.round(client.waitingTimeMs / (1000 * 60)) : 0;
-        const processTimeMin = client.processingTimeMs ? Math.round(client.processingTimeMs / (1000 * 60)) : 0;
-        
-        if (waitTimeMin > 0 || processTimeMin > 0) {
-            clientInfo += ` - Wait: ${waitTimeMin}m, Process: ${processTimeMin}m`;
-        }
-        
-        reportContent += `${clientInfo}\n`;
+        reportContent += `${index + 1}. ${client.name} - ${client.purpose} (${getStatusLabel(client.status)})\n`;
     });
     
     alert(reportContent);
