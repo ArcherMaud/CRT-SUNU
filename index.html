@@ -6,8 +6,7 @@
   <meta name="author" content="Archer Maud">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="p.css">
   <script src="https://kit.fontawesome.com/11b9525b82.js" crossorigin="anonymous"></script>
 
   <title>Client Reception Tracker</title>
@@ -18,7 +17,7 @@
     <hr>
     <div class="header-container">
       <h1>SUNU Assurances Ghana LTD</h1>
-      <img src="Logo_SUNU_Assurances_HD-01_(002)_copy[1].png" width="300" height="200">
+      <img src="img3/Logo_SUNU_Assurances_HD-01_(002)_copy[1].png" width="300" height="200">
     </div>
     <hr>
     <h2>Client Reception Tracker</h2>
@@ -83,6 +82,12 @@
         <button type="submit" id="submit">Add Client</button>
       </div>
 
+      <!-- Department Comments Notification -->
+      <div id="departmentCommentsNotification" class="comments-notification" style="display: none;">
+        <h3>New Department Comments <span id="newCommentsCount" class="notification-badge">0</span></h3>
+        <div id="commentsList"></div>
+        <button onclick="markCommentsAsSeen()">Mark All as Seen</button>
+      </div>
 
       <!-- Client Records Table -->
       <div class="table-container">
@@ -95,6 +100,7 @@
               <th>Purpose</th>
               <th>Time</th>
               <th>Status</th>
+              <th>Dept. Comments</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -102,7 +108,7 @@
         </table>
 
         <button type="button" style="margin-top: 20px" onclick="clearEntries()">Clear All Entries</button>
-         
+         
       </div>
 
       <div class="reports-section">
@@ -113,7 +119,6 @@
           <button onclick="generateDailyReport()">Department Summary</button>
         </div>
 
-
         <br><br>
         <!-- Optional: Date selector for past reports -->
         <div class="date-selector">
@@ -123,9 +128,6 @@
         </div>
       </div>
     </form>
-    <div>
-    <a href="department.html">Go to Department</a>
-      </div>
   </main>
   <br><br>
   <footer>
