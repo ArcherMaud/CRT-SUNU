@@ -16,7 +16,7 @@
         <hr> 
         <div class="header-container">
             <h1>SUNU Assurances Ghana LTD</h1>
-            <img src="Logo_SUNU_Assurances_HD-01_(002)_copy[1].png" alt="SUNU Assurances Logo" width="300" height="200">
+            <img src="/img3/Logo_SUNU_Assurances_HD-01_(002)_copy[1].png" alt="SUNU Assurances Logo" width="300" height="200">
         </div>
         <hr>
         <h2>Department Client Dashboard <span id="departmentTitle"></span></h2>
@@ -66,6 +66,42 @@
             
             <div id="noClientsMessage" class="no-clients-message">No clients waiting for this department</div>
         </section>
+
+        <!-- Comment Modal -->
+        <div id="commentModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Add Comment for <span id="modalClientName"></span></h3>
+                    <span class="close" onclick="closeCommentModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <form id="commentForm">
+                        <div class="form-group">
+                            <label for="departmentComment">Department Comment:</label>
+                            <textarea id="departmentComment" rows="4" placeholder="Enter your comment about this client..." required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="staffName">Staff Name:</label>
+                            <input type="text" id="staffName" placeholder="Enter your name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="commentType">Comment Type:</label>
+                            <select id="commentType">
+                                <option value="general">General Comment</option>
+                                <option value="issue">Issue/Problem</option>
+                                <option value="resolved">Issue Resolved</option>
+                                <option value="follow-up">Follow-up Required</option>
+                                <option value="completed">Service Completed</option>
+                            </select>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" onclick="closeCommentModal()">Cancel</button>
+                            <button type="submit">Submit Comment</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
 
         <!-- Reports Section -->
         <section class="reports-section">
