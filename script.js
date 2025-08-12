@@ -64,7 +64,8 @@ const STATUS = {
           startTime: null,
           completionTime: null,
           seen: false,
-          status: STATUS.WAITING
+          status: STATUS.WAITING,
+          departmentComments: [] // Initialize empty array for department comments
       };
       
       // Add client to queue
@@ -490,3 +491,4 @@ function removeClient(clientId) {
         alert('Please select a date first');
     }
   }
+
