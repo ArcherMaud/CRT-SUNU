@@ -9,6 +9,7 @@ const STATUS = {
 let selectedDepartment = '';
 let clientQueue = [];
 let lastCheckTime = 0;
+let currentClientForComment = null;
 
 // Load when the document is ready
 document.addEventListener('DOMContentLoaded', function () {
@@ -25,6 +26,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Start checking for new clients regularly
     setInterval(checkForNewClients, 5000); // Check every 5 seconds
+
+    // Set up comment form submission
+    const commentForm = document.getElementById('commentForm');
+    if (commentForm) {
+        commentForm.addEventListener('submit', handleCommentSubmit);
+    }
 });
 
 // Set the selected department
@@ -123,7 +130,14 @@ function updateClientTable(departmentClients) {
         timeCell.textContent = client.time;
         
         const commentCell = document.createElement('td');
-        commentCell.textContent = client.comment || '-';
+        // Display original comment and department comments
+        let commentDisplay = client.comment || '-';
+        if (client.departmentComments && client.departmentComments.length > 0) {
+            const latestComment = client.departmentComments[client.departmentComments.length - 1];
+            commentDisplay += `\n[${latestComment.department}]: ${latestComment.comment}`;
+        }
+        commentCell.textContent = commentDisplay;
+        commentCell.style.whiteSpace = 'pre-line';
         
         const actionsCell = document.createElement('td');
         actionsCell.className = 'action-buttons';
@@ -157,17 +171,6 @@ function updateClientTable(departmentClients) {
             openCommentModal(client);
         };
         actionsCell.appendChild(commentBtn);
-
-        // Show existing department comments if any
-        if (client.departmentComments && client.departmentComments.length > 0) {
-            const viewCommentsBtn = document.createElement('button');
-            viewCommentsBtn.textContent = 'View Comments';
-            viewCommentsBtn.className = 'view-comments-btn';
-            viewCommentsBtn.onclick = function() {
-                viewDepartmentComments(client);
-            };
-            actionsCell.appendChild(viewCommentsBtn);
-        }
         
         // Append all cells to the row
         row.appendChild(statusCell);
@@ -187,6 +190,110 @@ function updateClientTable(departmentClients) {
     
     // Update last check time
     lastCheckTime = Date.now();
+}
+
+// Open comment modal
+function openCommentModal(client) {
+    currentClientForComment = client;
+    document.getElementById('modalClientName').textContent = client.name;
+    document.getElementById('commentModal').style.display = 'block';
+    
+    // Clear form
+    document.getElementById('commentForm').reset();
+    document.getElementById('departmentComment').focus();
+}
+
+// Close comment modal
+function closeCommentModal() {
+    document.getElementById('commentModal').style.display = 'none';
+    currentClientForComment = null;
+}
+
+// Handle comment form submission
+function handleCommentSubmit(event) {
+    event.preventDefault();
+    
+    if (!currentClientForComment) return;
+    
+    const comment = document.getElementById('departmentComment').value.trim();
+    const staffName = document.getElementById('staffName').value.trim();
+    const commentType = document.getElementById('commentType').value;
+    
+    if (!comment || !staffName) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    // Create comment object
+    const departmentComment = {
+        id: generateUniqueId(),
+        comment: comment,
+        staffName: staffName,
+        department: selectedDepartment,
+        commentType: commentType,
+        timestamp: new Date().getTime(),
+        dateTime: new Date().toLocaleString()
+    };
+    
+    // Add comment to client
+    addCommentToClient(currentClientForComment.id, departmentComment);
+    
+    // Close modal
+    closeCommentModal();
+    
+    // Refresh the table
+    checkForNewClients();
+    
+    // Show success message
+    alert('Comment added successfully and sent to reception!');
+}
+
+// Add comment to client
+function addCommentToClient(clientId, comment) {
+    // Find the client in the queue
+    const clientIndex = clientQueue.findIndex(client => client.id === clientId);
+    if (clientIndex === -1) return;
+    
+    // Initialize departmentComments array if it doesn't exist
+    if (!clientQueue[clientIndex].departmentComments) {
+        clientQueue[clientIndex].departmentComments = [];
+    }
+    
+    // Add the comment
+    clientQueue[clientIndex].departmentComments.push(comment);
+    
+    // Update the client's last activity
+    clientQueue[clientIndex].lastActivity = new Date().getTime();
+    
+    // Save to localStorage
+    localStorage.setItem('clientQueue', JSON.stringify(clientQueue));
+    
+    // Also save to a separate comments log for reception
+    saveCommentToReceptionLog(clientQueue[clientIndex], comment);
+}
+
+// Save comment to reception log
+function saveCommentToReceptionLog(client, comment) {
+    let receptionComments = JSON.parse(localStorage.getItem('receptionComments') || '[]');
+    
+    const logEntry = {
+        clientId: client.id,
+        clientName: client.name,
+        clientPurpose: client.purpose,
+        comment: comment,
+        department: selectedDepartment,
+        timestamp: new Date().getTime(),
+        dateTime: new Date().toLocaleString(),
+        seen: false // Flag to indicate if reception has seen this comment
+    };
+    
+    receptionComments.push(logEntry);
+    localStorage.setItem('receptionComments', JSON.stringify(receptionComments));
+}
+
+// Generate unique ID
+function generateUniqueId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
 // Get status label text
@@ -226,143 +333,6 @@ function updateClientStatus(clientId, newStatus) {
     checkForNewClients();
 }
 
-// Open comment modal for a client
-function openCommentModal(client) {
-    // Create modal overlay
-    const modal = document.createElement('div');
-    modal.className = 'comment-modal-overlay';
-    modal.innerHTML = `
-        <div class="comment-modal">
-            <div class="comment-modal-header">
-                <h3>Add Comment for ${client.name}</h3>
-                <button class="close-modal" onclick="closeCommentModal()">&times;</button>
-            </div>
-            <div class="comment-modal-body">
-                <p><strong>Purpose:</strong> ${client.purpose}</p>
-                <p><strong>Time:</strong> ${client.time}</p>
-                <p><strong>Status:</strong> ${getStatusLabel(client.status)}</p>
-                
-                <div class="comment-form">
-                    <label for="departmentComment">Your Comment:</label>
-                    <textarea id="departmentComment" rows="4" placeholder="Enter your comment about this client..."></textarea>
-                    
-                    <div class="comment-actions">
-                        <button onclick="submitDepartmentComment('${client.id}')" class="submit-comment-btn">Submit Comment</button>
-                        <button onclick="closeCommentModal()" class="cancel-btn">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // Focus on textarea
-    setTimeout(() => {
-        document.getElementById('departmentComment').focus();
-    }, 100);
-}
-
-// Close comment modal
-function closeCommentModal() {
-    const modal = document.querySelector('.comment-modal-overlay');
-    if (modal) {
-        document.body.removeChild(modal);
-    }
-}
-
-// Submit department comment
-function submitDepartmentComment(clientId) {
-    const commentText = document.getElementById('departmentComment').value.trim();
-    
-    if (!commentText) {
-        alert('Please enter a comment');
-        return;
-    }
-    
-    // Find the client in the queue
-    const clientIndex = clientQueue.findIndex(client => client.id === clientId);
-    if (clientIndex === -1) {
-        alert('Client not found');
-        return;
-    }
-    
-    // Initialize departmentComments array if it doesn't exist
-    if (!clientQueue[clientIndex].departmentComments) {
-        clientQueue[clientIndex].departmentComments = [];
-    }
-    
-    // Create comment object
-    const comment = {
-        id: Date.now().toString(),
-        department: selectedDepartment,
-        departmentText: document.getElementById('department').options[document.getElementById('department').selectedIndex].text,
-        comment: commentText,
-        timestamp: new Date().toISOString(),
-        author: selectedDepartment // You could enhance this to include staff name
-    };
-    
-    // Add comment to client
-    clientQueue[clientIndex].departmentComments.push(comment);
-    
-    // Save to localStorage
-    localStorage.setItem('clientQueue', JSON.stringify(clientQueue));
-    
-    // Close modal
-    closeCommentModal();
-    
-    // Refresh the table
-    checkForNewClients();
-    
-    // Show success message
-    alert('Comment submitted successfully!');
-}
-
-// View department comments for a client
-function viewDepartmentComments(client) {
-    if (!client.departmentComments || client.departmentComments.length === 0) {
-        alert('No comments available for this client');
-        return;
-    }
-    
-    // Create modal to display comments
-    const modal = document.createElement('div');
-    modal.className = 'comment-modal-overlay';
-    
-    let commentsHtml = '';
-    client.departmentComments.forEach(comment => {
-        const commentDate = new Date(comment.timestamp).toLocaleString();
-        commentsHtml += `
-            <div class="comment-item">
-                <div class="comment-header">
-                    <strong>${comment.departmentText || comment.department}</strong>
-                    <span class="comment-date">${commentDate}</span>
-                </div>
-                <div class="comment-text">${comment.comment}</div>
-            </div>
-        `;
-    });
-    
-    modal.innerHTML = `
-        <div class="comment-modal">
-            <div class="comment-modal-header">
-                <h3>Comments for ${client.name}</h3>
-                <button class="close-modal" onclick="closeCommentModal()">&times;</button>
-            </div>
-            <div class="comment-modal-body">
-                <p><strong>Purpose:</strong> ${client.purpose}</p>
-                <p><strong>Time:</strong> ${client.time}</p>
-                <hr>
-                <div class="comments-list">
-                    ${commentsHtml}
-                </div>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-}
-
 function exportClientsAsCSV() {
     if (!selectedDepartment) {
         alert('Please select a department first');
@@ -378,9 +348,8 @@ function exportClientsAsCSV() {
     
     let csvContent = "ID,Name,Purpose,Time,Department,Status,Comments,Department Comments\n";
     clients.forEach(client => {
-        // Combine department comments into one field
         const deptComments = client.departmentComments ? 
-            client.departmentComments.map(c => `${c.departmentText}: ${c.comment}`).join('; ') : '';
+            client.departmentComments.map(c => `[${c.staffName}]: ${c.comment}`).join('; ') : '';
         
         csvContent += `${client.id},`;
         csvContent += `"${client.name}",`;
@@ -396,7 +365,7 @@ function exportClientsAsCSV() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `clients_${selectedDepartment}.csv`);
+    link.setAttribute('download', `clients_${selectedDepartment}_${new Date().toLocaleDateString().replace(/\//g, '-')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -421,11 +390,15 @@ function generateDailyReport() {
     const inProgress = departmentClients.filter(c => c.status === STATUS.IN_PROGRESS).length;
     const completed = departmentClients.filter(c => c.status === STATUS.COMPLETED).length;
     
+    // Count clients with department comments
+    const withComments = departmentClients.filter(c => c.departmentComments && c.departmentComments.length > 0).length;
+    
     let reportContent = `Daily Report for ${selectedDepartment} (${today})\n\n`;
     reportContent += `Total Clients: ${departmentClients.length}\n`;
     reportContent += `Waiting: ${waiting}\n`;
     reportContent += `In Progress: ${inProgress}\n`;
     reportContent += `Completed: ${completed}\n`;
+    reportContent += `Clients with Comments: ${withComments}\n`;
     
     alert(reportContent);
 }
@@ -449,6 +422,7 @@ function displayEndOfDayReport() {
     const waiting = departmentClients.filter(c => c.status === STATUS.WAITING).length;
     const inProgress = departmentClients.filter(c => c.status === STATUS.IN_PROGRESS).length;
     const completed = departmentClients.filter(c => c.status === STATUS.COMPLETED).length;
+    const withComments = departmentClients.filter(c => c.departmentComments && c.departmentComments.length > 0).length;
     
     let reportContent = `END OF DAY REPORT - ${selectedDepartment} (${today})\n`;
     reportContent += `===================================\n\n`;
@@ -456,11 +430,16 @@ function displayEndOfDayReport() {
     reportContent += `Total Clients: ${departmentClients.length}\n`;
     reportContent += `Waiting: ${waiting}\n`;
     reportContent += `In Progress: ${inProgress}\n`;
-    reportContent += `Completed: ${completed}\n\n`;
+    reportContent += `Completed: ${completed}\n`;
+    reportContent += `Clients with Comments: ${withComments}\n\n`;
     
     reportContent += `CLIENT LIST:\n`;
     departmentClients.forEach((client, index) => {
-        reportContent += `${index + 1}. ${client.name} - ${client.purpose} (${getStatusLabel(client.status)})\n`;
+        reportContent += `${index + 1}. ${client.name} - ${client.purpose} (${getStatusLabel(client.status)})`;
+        if (client.departmentComments && client.departmentComments.length > 0) {
+            reportContent += ` - ${client.departmentComments.length} comment(s)`;
+        }
+        reportContent += `\n`;
     });
     
     alert(reportContent);
@@ -481,3 +460,4 @@ function runDateSpecificReport() {
     
     alert(`Date-specific reports not implemented yet. Selected date: ${dateInput.value}`);
 }
+
